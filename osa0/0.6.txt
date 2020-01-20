@@ -1,0 +1,13 @@
+note over selain:
+lisää muistiinpanon listalle
+päivittää listan ruudulla
+lähettää muistiinpanon palvelimelle
+end note
+
+selain->palvelin: HTTP POST https://fullstack-exampleapp.herokuapp.com/new_note_spa
+
+note over palvelin:
+tallentaa muistiinpanon
+end note
+
+palvelin-->selain: HTTP 201 {"message":"note created"}

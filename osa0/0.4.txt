@@ -1,0 +1,27 @@
+selain->palvelin: HTTP POST https://fullstack-exampleapp.herokuapp.com/new_note
+
+note over palvelin:
+käsittelee pyynnön
+tallentaa muistiinpanon
+end note
+
+palvelin-->selain: HTTP 302 redirect /notes
+selain->palvelin: HTTP GET https://fullstack-exampleapp.herokuapp.com/notes
+palvelin-->selain: HTTP 200 notes.html
+selain->palvelin: HTTP GET https://fullstack-exampleapp.herokuapp.com/main.css
+palvelin-->selain: HTTP 200 main.css
+selain->palvelin: HTTP GET https://fullstack-exampleapp.herokuapp.com/main.js
+palvelin-->selain: HTTP 200 main.js
+
+note over selain:
+alkaa suorittaa main.js
+pyytää JSON-datan palvelimelta
+end note
+
+selain->palvelin: HTTP GET https://fullstack-exampleapp.herokuapp.com/data.json
+palvelin-->selain: HTTP 200 [{"content":"HTML is easy", ...]
+
+note over selain:
+suorittaa tapahtumankäsittelijän
+renderöi muistiinpanot näytölle
+end note
