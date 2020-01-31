@@ -2,13 +2,17 @@ import React, { useState, useEffect } from 'react'
 import Filter from './components/Filter'
 import Persons from './components/Persons'
 import PersonForm from './components/PersonForm'
+import Notification from './components/Notification'
 import personsService from './services/persons'
+import './index.css'
 
 const App = () => {
     const [ persons, setPersons] = useState([])
     const [ newName, setNewName ] = useState('')
     const [ newNumber, setNewNumber] = useState('')
     const [ filter, setFilter] = useState('')
+    const [ notification, setNotification ] = useState(null)
+    const [ isError, setIsError ] = useState(false)
     
     useEffect(() => {
         personsService
@@ -37,6 +41,16 @@ const App = () => {
         setNewNumber('')
     }
 
+    const showNotification = (msg) => {
+        setNotification(msg)
+        setTimeout(() => {
+            setNotification(null)
+            if(isError) {
+                setIsError(false)
+            }
+        }, 4000)
+    }
+
     const createNewPerson = () => {
         const personObject = getNewPerson()
         personsService
@@ -44,6 +58,7 @@ const App = () => {
             .then(returnedPerson => {
                 setPersons(persons.concat(returnedPerson))
                 clearNewPersonData()
+                showNotification(`Added ${returnedPerson.name}`)
             })
     }
 
@@ -54,6 +69,13 @@ const App = () => {
             .then(returnedPerson => {
                 setPersons(persons.map(person => person.id !== id ? person : returnedPerson))
                 clearNewPersonData()
+                showNotification(`Updated ${returnedPerson.name}`)
+            })
+            .catch(error => {
+                console.log('updatePerson failed: ', error)
+                setIsError(true)
+                showNotification(`Information of ${personObject.name} has already been removed from server`)
+                setPersons(persons.filter(person => person.id !== id))
             })
     }
 
@@ -75,9 +97,17 @@ const App = () => {
         const name = persons.find(p => p.id === id).name
         if(window.confirm(`Detele ${name}`)) {
             personsService.remove(id)
-            .then(response => {
-                setPersons(persons.filter(person => person.id !== id))
-            })
+                .then(response => {
+                    showNotification(`Removed ${name}`)
+                })
+                .catch(error => {
+                    console.log('deletePerson failed: ', error)
+                    setIsError(true)
+                    showNotification(`Information of ${name} was already removed from server`)
+                })
+                .finally(() => {
+                    setPersons(persons.filter(person => person.id !== id))
+                })
         }
         
     }
@@ -87,6 +117,7 @@ const App = () => {
     return (
         <div>
             <h2>Phonebook</h2>
+            <Notification message={notification} isError={isError}/>
             <Filter filter={filter} handleFilterChange={handleFilterChange} />
             <h2>Add a new</h2>
             <PersonForm 
