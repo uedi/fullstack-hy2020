@@ -4,6 +4,7 @@ const app = require('../app')
 const api = supertest(app)
 const helper = require('./test_helper')
 const Blog = require('../models/blog')
+const User = require('../models/user')
 
 beforeEach(async () => {
     await Blog.deleteMany({})
@@ -40,11 +41,28 @@ describe('GET /api/blogs', () => {
 })
 
 describe('POST /api/blogs', () => {
+
+    beforeEach(async () => {
+        await User.deleteMany({})
+        await User.insertMany([helper.testUserToDb])
+    })
+
+    test('unauthorized if not logged in', async () => {
+
+        const response = await api
+            .post('/api/blogs')
+            .send(helper.newBlog)
+            .expect(401)
+        expect(response.body.error).toBe('invalid token')
+
+    })
+
     test('a blog can be added to database', async () => {
         const initialResponse = await api.get('/api/blogs').expect(200)
         
-        const postResponse = await api
+        await api
             .post('/api/blogs')
+            .set('Authorization', helper.testUserAuth)
             .send(helper.newBlog)
             .expect(201)
 
@@ -52,10 +70,12 @@ describe('POST /api/blogs', () => {
         expect(response.body.length).toBe(initialResponse.body.length + 1)
         const titles = response.body.map(blog => blog.title)
         expect(titles).toContain(helper.newBlog.title)
+
     })
     test('post returns new blog in correct format', async () => {
         const postResponse = await api
             .post('/api/blogs')
+            .set('Authorization', helper.testUserAuth)
             .send(helper.newBlog)
             .expect(201)
             .expect('Content-Type', /application\/json/)
@@ -71,6 +91,7 @@ describe('POST /api/blogs', () => {
         const blog = { title: 'Title', author: 'Dude', url: 'https://url.com/' }
         const response = await api
             .post('/api/blogs')
+            .set('Authorization', helper.testUserAuth)
             .send(blog)
             .expect(201)
         expect(response.body.likes).toBeDefined()
@@ -83,10 +104,12 @@ describe('POST /api/blogs', () => {
 
         await api
             .post('/api/blogs')
+            .set('Authorization', helper.testUserAuth)
             .send(blogWithoutTitle)
             .expect(400)
         await api
             .post('/api/blogs')
+            .set('Authorization', helper.testUserAuth)
             .send(blogWithoutUrl)
             .expect(400)
 
@@ -96,11 +119,17 @@ describe('POST /api/blogs', () => {
 })
 
 describe('DELETE /api/blogs/:id', () => {
+
+    beforeEach(async () => {
+        await User.deleteMany({})
+        await User.insertMany([helper.testUserToDb])
+    })
+
     test('a blog can be removed', async () => {
         await Blog.deleteMany({})
         await Blog.insertMany([
-            { title: 'Title1', author: 'Dude1', url: 'https://url1.com/' },
-            { title: 'Title2', author: 'Dude2', url: 'https://url2.com/' }    
+            { title: 'Title1', author: 'Dude1', url: 'https://url1.com/' , user: helper.testUserToDb._id },
+            { title: 'Title2', author: 'Dude2', url: 'https://url2.com/' , user: helper.testUserToDb._id }
         ])
 
         const initialResponse = await api.get('/api/blogs').expect(200)
@@ -108,6 +137,7 @@ describe('DELETE /api/blogs/:id', () => {
         
         await api
             .delete(`/api/blogs/${initialResponse.body[0].id}`)
+            .set('Authorization', helper.testUserAuth)
             .expect(204)
 
         const response = await api.get('/api/blogs').expect(200)
@@ -117,14 +147,22 @@ describe('DELETE /api/blogs/:id', () => {
     test('returns 400 when id is not valid', async () => {
         await api
             .delete(`/api/blogs/abcd1234`)
+            .set('Authorization', helper.testUserAuth)
             .expect(400)
     })
 })
 
 describe('PUT /api/blogs/:id', () => {
+
+    beforeEach(async () => {
+        await User.deleteMany({})
+        await User.insertMany([helper.testUserToDb])
+    })
+
     test('a blog can be updated', async () => {
         const postResponse = await api
             .post('/api/blogs')
+            .set('Authorization', helper.testUserAuth)
             .send(helper.newBlog)
             .expect(201)
 
@@ -140,12 +178,17 @@ describe('PUT /api/blogs/:id', () => {
         const getResponse = await api
             .get(`/api/blogs/${postResponse.body.id}`)
             .expect(200)
-        newBlog.id = postResponse.body.id
-        expect(getResponse.body).toEqual(newBlog)
+        expect(helper.sameBlogContent(getResponse.body, newBlog)).toBe(true)
     })
 })
 
 describe('GET /api/blogs/:id', () => {
+
+    beforeEach(async () => {
+        await User.deleteMany({})
+        await User.insertMany([helper.testUserToDb])
+    })
+
     test('returns a blog if it is saved to db', async () => {
         const initialResponse = await api
             .get('/api/blogs')
@@ -156,10 +199,11 @@ describe('GET /api/blogs/:id', () => {
             .get(`/api/blogs/${initialResponse.body[0].id}`)
             .expect(200)
 
-        expect(initialResponse.body[0]).toEqual(response.body)
+        expect(helper.sameBlogContent(initialResponse.body[0], response.body)).toBe(true)
 
         await api
             .delete(`/api/blogs/${initialResponse.body[0].id}`)
+            .set('Authorization', helper.testUserAuth)
             .expect(204)
         
         await api
